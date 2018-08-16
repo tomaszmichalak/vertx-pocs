@@ -1,0 +1,9 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    compile 'io.vertx:vertx-core:3.5.3'
+    compile 'io.vertx:vertx-web:3.5.3'
+    compile 'ch.qos.logback:logback-classic:1.0.13'
+}

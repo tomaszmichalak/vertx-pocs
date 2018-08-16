@@ -1,0 +1,9 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    compile project(':web-customizable-server')
+    implementation 'io.vertx:vertx-core:3.5.3'
+    implementation 'io.vertx:vertx-web:3.5.3'
+}

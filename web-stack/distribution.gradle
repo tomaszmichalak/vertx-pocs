@@ -1,0 +1,34 @@
+def distributionDir = file("${buildDir}/out")
+def stackName = "server-stack"
+def distributionName = "stack.zip"
+
+configurations {
+  deps
+}
+
+dependencies {
+  deps project(':web-stack')
+  deps project(':web-customizable-server')
+  deps project(':web-custom-handler')
+}
+
+task cleanDistribution(type: Delete) {
+  delete distributionDir
+}
+
+
+task downloadDeps(type: Copy) {
+  from configurations.deps
+  into "${distributionDir}/${stackName}"
+}
+
+task assembleDistributionWithDeps(type: Zip) {
+  from distributionDir
+  archiveName distributionName
+}
+
+downloadDeps.dependsOn(cleanDistribution)
+assembleDistributionWithDeps.dependsOn(downloadDeps)
+
+build.dependsOn(assembleDistributionWithDeps)
+clean.dependsOn(cleanDistribution)

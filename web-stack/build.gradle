@@ -1,0 +1,21 @@
+plugins {
+    id 'java-library'
+}
+
+apply from: "${rootProject.projectDir}/web-stack/distribution.gradle"
+
+dependencies {
+    compile project(':web-customizable-server')
+    // required for MANIFEST.MF
+    compile project(':web-custom-handler')
+    compile 'ch.qos.logback:logback-classic:1.0.13'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'pl.tomaszmichalak.example.web.stack.App',
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
+        )
+    }
+}
