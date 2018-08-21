@@ -1,0 +1,89 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Example Server API
+  license:
+    name: Apache Licence 2.0
+paths:
+  /all:
+    get:
+      summary: List of all messages
+      operationId: allMessages
+      tags:
+        - messages
+      responses:
+        '200':
+          description: Array of messages from customizable routing handlers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Messages"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /common:
+      get:
+        summary: List of common messages
+        operationId: commonMessages
+        tags:
+          - messages
+        responses:
+          '200':
+            description: Array of messages from customizable routing handlers.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Messages"
+          default:
+            description: unexpected error
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Error"
+  /custom:
+        get:
+          summary: List of custom messages
+          operationId: customMessages
+          tags:
+            - messages
+          responses:
+            '200':
+              description: Array of messages from customizable routing handlers.
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/Messages"
+            default:
+              description: unexpected error
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Message:
+      required:
+        - handlerName
+        - messageValue
+      properties:
+        handlerName:
+          type: String
+        messageValue:
+          type: string
+    Messages:
+      type: array
+      items:
+        $ref: "#/components/schemas/Message"
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string

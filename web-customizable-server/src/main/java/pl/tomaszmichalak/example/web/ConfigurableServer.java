@@ -1,82 +1,78 @@
 package pl.tomaszmichalak.example.web;
 
-import io.vertx.core.AbstractVerticle;
+
+import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
+import io.vertx.reactivex.config.ConfigRetriever;
+import io.vertx.reactivex.core.AbstractVerticle;
+import io.vertx.reactivex.ext.web.api.contract.openapi3.OpenAPI3RouterFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
-import org.apache.commons.io.IOUtils;
-import pl.tomaszmichalak.example.web.api.ConfigurableHandler;
-import pl.tomaszmichalak.example.web.api.ConfigurableHandlerFactory;
+import pl.tomaszmichalak.example.web.api.RoutingHandlerFactory;
 
 
 public class ConfigurableServer extends AbstractVerticle {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigurableServer.class);
 
-  private static final String HANDLERS = "handlers";
 
   @Override
   public void start() {
-    JsonObject config = initConfig();
-    LOG.info("Application config :" + config);
+    ConfigStoreOptions storeOptions = new ConfigStoreOptions()
+        .setType("file")
+        .setFormat("hocon")
+        .setConfig(new JsonObject().put("path", "application.conf"));
 
-    Router router = Router.router(vertx);
+    ConfigRetriever retriever = ConfigRetriever
+        .create(vertx, new ConfigRetrieverOptions().addStore(storeOptions));
 
-    List<ConfigurableHandlerFactory> registeredFactories = new ArrayList<>();
-    ServiceLoader.load(ConfigurableHandlerFactory.class).iterator().forEachRemaining(item -> {
-          registeredFactories.add(item);
-          LOG.info("Registered handler:" + item.getClass().getCanonicalName());
+    retriever.rxGetConfig()
+        .flatMap(config ->
+            OpenAPI3RouterFactory.rxCreate(vertx, "/rest-api.yaml")
+                .doOnSuccess(routerFactory -> {
+                  List<RoutingHandlerFactory> routingFactories = getRoutingHandlerFactories();
+                  // register handlers
+                  config.getJsonArray("operations").forEach(operation ->
+                      registerHandlers(routerFactory, (JsonObject) operation, routingFactories)
+                  );
+                }).flatMap(routerFactory -> vertx.createHttpServer()
+                .requestHandler(routerFactory.getRouter()::accept)
+                .rxListen(8080))
+        ).subscribe(onSuccess -> LOG.info("The server is started on the port 8080"),
+        onError -> LOG.error("Could not start the server!", onError));
+  }
+
+  private void registerHandlers(OpenAPI3RouterFactory routerFactory, JsonObject operationData,
+      List<RoutingHandlerFactory> routingFactories) {
+    String operationId = operationData.getString("id");
+    operationData.getJsonArray("handlers").forEach(handler -> {
+      JsonObject handlerData = (JsonObject) handler;
+      routingFactories.forEach(handlerFactory -> {
+            if (handlerFactory.getName().equals(handlerData.getString("name"))) {
+              routerFactory.addHandlerByOperationId(operationId,
+                  handlerFactory.create(handlerData.getJsonObject("config")));
+              LOG.info(
+                  "Configured handler with factory: " + handlerFactory.getName()
+                      + " and configuration: "
+                      + handlerData);
+            }
+          }
+      );
+    });
+  }
+
+  private List<RoutingHandlerFactory> getRoutingHandlerFactories() {
+    List<RoutingHandlerFactory> routingFactories = new ArrayList<>();
+    ServiceLoader.load(RoutingHandlerFactory.class).iterator().forEachRemaining(factory -> {
+          routingFactories.add(factory);
+          LOG.info("Registered handler:" + factory.getName());
         }
     );
-
-    router.route().handler(BodyHandler.create());
-    config.getJsonArray(HANDLERS).forEach(handlerDefinition -> {
-      JsonObject definition = (JsonObject) handlerDefinition;
-      registeredFactories.forEach(factory -> {
-        if (factory.getClass().getCanonicalName().equals(definition.getString("class"))) {
-          ConfigurableHandler handler = factory.create(definition.getJsonObject("config"));
-          handler.register(router, definition.getJsonObject("route"));
-          LOG.info("Configured handler with factory: " + factory.getClass() + " and configuration: " + definition);
-        }
-      });
-    });
-    router.route().handler(this::handleAll);
-
-    vertx.createHttpServer().requestHandler(router::accept).listen(8080);
-    LOG.info("Server started on port 8080");
-  }
-
-  private JsonObject initConfig() {
-    try {
-      String config = readFile("/config/application.json", "utf-8");
-      return new JsonObject(config);
-    } catch (Exception e) {
-      LOG.error("Could not load the config file", e);
-      throw new RuntimeException(e);
-    }
-  }
-
-  private String readFile(String path, String encoding) throws IOException {
-    InputStream resourceStream = getClass().getResourceAsStream(path);
-    StringWriter writer = new StringWriter();
-    IOUtils.copy(resourceStream, writer, encoding);
-    return writer.toString();
-  }
-
-  private void handleAll(RoutingContext routingContext) {
-    JsonObject arr = new JsonObject();
-    arr.put("messaage", (String) routingContext.get("message"));
-    routingContext.response().putHeader("content-type", "application/json")
-        .end(arr.encodePrettily());
+    return routingFactories;
   }
 
 }

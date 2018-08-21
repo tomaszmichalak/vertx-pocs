@@ -1,0 +1,2 @@
+pl.tomaszmichalak.example.web.common.CommonMessageRoutingHandlerFactory
+pl.tomaszmichalak.example.web.common.BodyRewriterHandlerFactory
