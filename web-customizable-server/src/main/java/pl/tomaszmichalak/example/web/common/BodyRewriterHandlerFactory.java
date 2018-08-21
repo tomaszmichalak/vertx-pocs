@@ -10,25 +10,16 @@ public class BodyRewriterHandlerFactory implements RoutingHandlerFactory {
 
   @Override
   public String getName() {
-    return BodyRewriterHandler.NAME;
+    return "bodyHandler";
   }
 
   @Override
   public Handler<RoutingContext> create(JsonObject config) {
-    return new BodyRewriterHandler();
-  }
-
-  private class BodyRewriterHandler implements Handler<RoutingContext> {
-
-    private static final String NAME = "bodyHandler";
-
-    @Override
-    public void handle(RoutingContext routingContext) {
+    return routingContext -> {
       JsonObject arr = new JsonObject();
       arr.put("messages", (JsonArray) routingContext.get("messages"));
       routingContext.response().putHeader("content-type", "application/json")
           .end(arr.encodePrettily());
-    }
-
+    };
   }
 }
