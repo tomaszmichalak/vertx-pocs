@@ -1,8 +1,8 @@
-defaultTasks = ['build']
+defaultTasks = listOf("build")
 
 allprojects {
     repositories {
         jcenter()
-        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url = uri("https://plugins.gradle.org/m2/") }
     }
 }
